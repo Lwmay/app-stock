@@ -1,0 +1,8 @@
+services:
+  app-stock:
+    build: .
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./inventory.db:/app/inventory.db
+    restart: always

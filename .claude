@@ -1,0 +1,77 @@
+# App Stock - Suivi du Projet
+
+Fichier de suivi de l'avancement, de l'architecture et des tâches restantes pour **App Stock**.
+
+## Présentation du Projet
+**App Stock** est une application simple et responsive de gestion d'inventaire pour la maison (boîtes de conserve, papier toilette, épicerie, etc.) répartie sur deux lieux : la **Cave** et la **Cuisine**.
+Optimisée pour une utilisation fluide sur mobile (iPhone & Android), conçue pour être déployée sur un **VPS Ionos** via Docker.
+
+### Technologies utilisées
+- **Python 3.x**
+- **Streamlit** (interface web réactive, adaptée aux smartphones)
+- **Pandas** (manipulation des données de stock)
+- **SQLite3** (base de données locale persistante `inventory.db`)
+- **Docker & Docker Compose** (déploiement identique en local et sur VPS)
+
+## Architecture de la Base de Données
+1. **`items`** : liste des articles uniques (clé primaire `id`, `name` unique, `category` avec valeur par défaut `'Autre'`).
+2. **`stock`** : quantités d'articles par emplacement (clé composite `item_id` + `location` limitée à `'Cave'` ou `'Cuisine'`). Un article peut n'avoir une ligne stock que dans un seul emplacement (Cave OU Cuisine OU les deux).
+
+## État d'avancement
+
+### Réalisé
+- [x] Cadrage du projet (Streamlit choisi pour la simplicité et la compatibilité mobile)
+- [x] Initialisation du projet et de la base de données SQLite (`inventory.db`)
+- [x] Configuration Docker (`Dockerfile` et `docker-compose.yml`)
+- [x] Script principal `app.py` (onglets Vue Globale, Cave et Cuisine)
+- [x] Gestion des articles (ajout, choix de l'emplacement Cave/Cuisine/Les deux, choix de catégorie)
+- [x] Ajustements rapides des stocks avec boutons `➕` / `➖` adaptés au mobile
+- [x] Habillage visuel complet : bandeau dégradé, onglets pleine largeur en boutons carrés, badges de quantité colorés (rouge/orange/vert), thème `.streamlit/config.toml`
+- [x] "Vue Globale" éditable directement (double-clic sur une case Cave/Cuisine) via `st.data_editor`
+- [x] Recherche dynamique lettre par lettre (`🔍`), y compris sans appuyer sur Entrée (hack JS de debounce + Enter simulé)
+- [x] Bande de catégories cliquable (Boisson, Pâtisserie, Entretien, Hygiène, Autre) filtrant les 3 onglets
+- [x] Pop-up "✏️ Éditer un article" : liste cliquable des articles (nom+catégorie), modification du nom/catégorie, suppression
+- [x] Détection de doublons à l'ajout : exact (insensible à la casse, bloquant) + similaire (fautes de frappe/ponctuation, confirmation demandée)
+- [x] Dev local sans Docker, serveur limité à `127.0.0.1` (voir section ci-dessous sur Norton)
+
+### En cours / Prochaines étapes
+- [ ] Vérifier le bon fonctionnement via Docker (pas encore testé sur ce poste, Docker non installé)
+- [ ] Déploiement sur le VPS Ionos (installation de Docker, transfert des fichiers, lancement) — c'est à ce moment que l'accès mobile réel (Cave/Cuisine depuis le téléphone) deviendra possible
+- [ ] Sécurisation d'accès (optionnel : mot de passe simple si l'application est exposée en ligne)
+
+## Lancer le projet en local (dev, sans Docker)
+
+> Docker n'est pas installé sur ce PC et le poste tourne avec l'antivirus Norton : lancer le serveur sur `0.0.0.0` (toutes interfaces) déclenchait une alerte pare-feu Norton bloquante. Le fichier `.streamlit/config.toml` limite donc le serveur à `127.0.0.1` (pas d'accès mobile en dev local) et désactive la télémétrie Streamlit (`gatherUsageStats = false`).
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+Application disponible sur `http://127.0.0.1:8501` (uniquement sur ce PC, pas sur le réseau local).
+
+L'accès mobile (Cave/Cuisine) ne se fera qu'une fois l'appli déployée sur le VPS (voir plus bas) — pas besoin de Docker en local pour l'instant.
+
+## Déploiement sur VPS Ionos
+1. Connexion SSH : `ssh root@<IP_DE_VOTRE_VPS>`
+2. Installer Docker & Docker Compose :
+   ```bash
+   apt update && apt upgrade -y
+   curl -fsSL https://get.docker.com -o get-docker.sh
+   sh get-docker.sh
+   apt install docker-compose -y
+   ```
+3. Transférer les fichiers (`app.py`, `Dockerfile`, `docker-compose.yml`, `requirements.txt`) :
+   ```bash
+   scp -r . root@<IP_DE_VOTRE_VPS>:/root/app-stock
+   ```
+4. Lancer l'application :
+   ```bash
+   cd /root/app-stock
+   docker-compose up --build -d
+   ```
+5. Accès en ligne : `http://<IP_DE_VOTRE_VPS>:8501` (ouvrir le port `8501` dans le pare-feu Ionos).
+
+## Notes
+- Stack : Python + Streamlit + SQLite.
+- Cible : mobile responsive (iPhone/Android).
+- Hébergement : VPS Ionos via Docker.

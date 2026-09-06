@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# IDE
+.idea/
+
+# Secrets
+.streamlit/secrets.toml
+
+# Local data
+inventory.db
