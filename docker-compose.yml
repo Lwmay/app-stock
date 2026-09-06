@@ -5,4 +5,5 @@ services:
       - "8501:8501"
     volumes:
       - ./inventory.db:/app/inventory.db
+      - ./.streamlit/secrets.toml:/app/.streamlit/secrets.toml:ro
     restart: always
