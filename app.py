@@ -447,6 +447,16 @@ button[kind="secondary"] {
     font-size: 1rem !important;
     min-height: 2.5rem !important;
 }
+/* Bouton qui rouvre la sidebar ("Nouvel Article") en haut à gauche quand elle est repliée */
+[data-testid="stExpandSidebarButton"] {
+    width: 3rem !important;
+    height: 3rem !important;
+    min-height: 3rem !important;
+}
+[data-testid="stExpandSidebarButton"] svg {
+    width: 2rem !important;
+    height: 2rem !important;
+}
 
 /* Cartes d'articles */
 .item-card {
@@ -614,6 +624,7 @@ button[kind="primary"] {
     [data-testid="stHorizontalBlock"]:has(.edit-btn-marker):has(.reorder-btn-marker) {
         flex-wrap: nowrap !important;
         overflow-x: auto !important;
+        justify-content: space-between !important;
     }
     [data-testid="stHorizontalBlock"]:has(.edit-btn-marker):has(.reorder-btn-marker) > [data-testid="stColumn"] {
         flex: 0 0 auto !important;
@@ -622,15 +633,24 @@ button[kind="primary"] {
     }
     [data-testid="stElementContainer"]:has(.reorder-btn-marker) + [data-testid="stElementContainer"] {
         width: auto !important;
-        text-align: left !important;
+        text-align: right !important;
     }
 }
 
-/* Les boutons dans la pop-up d'édition gardent leur taille normale */
-[data-testid="stDialog"] button, [role="dialog"] button {
+/* Les boutons dans la pop-up d'édition gardent leur taille normale
+   (sauf la croix native de fermeture, en haut à droite, qui garde son style compact) */
+[data-testid="stDialog"] button:not([aria-label="Close"]),
+[role="dialog"] button:not([aria-label="Close"]) {
     padding: 0.5rem 1rem !important;
     font-size: 1rem !important;
     min-height: 2.5rem !important;
+}
+
+[data-testid="stDialog"] button[aria-label="Close"] {
+    position: absolute !important;
+    top: 0.75rem !important;
+    right: 0.75rem !important;
+    z-index: 10 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -751,44 +771,38 @@ def render_inline_quantity_editor(item_name, location, current_qty, cell_token):
             st.rerun()
 
 @st.dialog("Éditer un article")
-def edit_article_dialog():
-    dialog_search = st.text_input("🔍 Rechercher un article", key="edit_dialog_search", placeholder="Nom de l'article...")
+def edit_article_dialog(preselected_name=None):
     items_df = get_all_items()
-    if dialog_search:
-        items_df = items_df[items_df["name"].str.contains(dialog_search, case=False, na=False)]
-    items_df = items_df.reset_index(drop=True)
 
-    options = items_df["name"].tolist()
-    if not options:
-        st.info("Aucun article trouvé.")
-        return
+    if preselected_name is not None:
+        selected_name = preselected_name
+    else:
+        dialog_search = st.text_input("🔍 Rechercher un article", key="edit_dialog_search", placeholder="Nom de l'article...")
+        filtered_df = items_df
+        if dialog_search:
+            filtered_df = filtered_df[filtered_df["name"].str.contains(dialog_search, case=False, na=False)]
+        filtered_df = filtered_df.reset_index(drop=True)
 
-    with st.container(height=250):
-        for _, row in items_df.iterrows():
-            if st.button(
-                f"{row['name']} — {row['category']}",
-                key=f"edit_pick_{row['name']}",
-                use_container_width=True,
-            ):
-                st.session_state["edit_dialog_select"] = row["name"]
+        options = filtered_df["name"].tolist()
+        if not options:
+            st.info("Aucun article trouvé.")
+            return
 
-    if st.session_state.get("edit_dialog_select") not in options:
-        st.session_state["edit_dialog_select"] = options[0]
+        if st.session_state.get("edit_dialog_select") not in options:
+            st.session_state["edit_dialog_select"] = options[0]
 
-    selected_name = st.selectbox("Article à modifier", options, key="edit_dialog_select")
+        selected_name = st.selectbox("Article à modifier", options, key="edit_dialog_select")
 
     current_category = items_df.loc[items_df["name"] == selected_name, "category"].iloc[0]
     current_threshold = int(items_df.loc[items_df["name"] == selected_name, "reorder_threshold"].iloc[0])
     current_warning = int(items_df.loc[items_df["name"] == selected_name, "warning_threshold"].iloc[0])
 
     if st.session_state.get("edit_dialog_last_selected") != selected_name:
-        st.session_state["edit_dialog_name"] = selected_name
         st.session_state["edit_dialog_category"] = current_category if current_category in CATEGORIES else CATEGORIES[0]
         st.session_state["edit_dialog_threshold"] = current_threshold
         st.session_state["edit_dialog_warning"] = current_warning
         st.session_state["edit_dialog_last_selected"] = selected_name
 
-    new_name = st.text_input("Nom", key="edit_dialog_name")
     new_category = st.selectbox("Catégorie", CATEGORIES, key="edit_dialog_category")
     new_threshold = st.number_input(
         "Seuil de réachat (racheter si le stock descend à ce niveau ou en dessous)",
@@ -802,7 +816,7 @@ def edit_article_dialog():
     col1, col2 = st.columns(2)
     with col1:
         if st.button("💾 Enregistrer", type="primary", key="edit_dialog_save"):
-            if update_item(selected_name, new_name, new_category, new_threshold, new_warning):
+            if update_item(selected_name, selected_name, new_category, new_threshold, new_warning):
                 st.rerun()
             else:
                 st.error("Un article avec ce nom existe déjà.")
@@ -985,7 +999,7 @@ with tab1:
                 if st.session_state.get("vue_globale_edit_last_opened") != item_name:
                     st.session_state["vue_globale_edit_last_opened"] = item_name
                     st.session_state["edit_dialog_select"] = item_name
-                    edit_article_dialog()
+                    edit_article_dialog(preselected_name=item_name)
 
     st.dataframe(
         base_stock,
