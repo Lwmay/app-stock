@@ -621,6 +621,20 @@ button[kind="primary"] {
    masquer un bouton. Le style desktop (colonnes 3:1, "À racheter" à droite) reste
    inchangé au-dessus de ce seuil. */
 @media (max-width: 700px) {
+    /* Sur mobile, la barre d'outils native Streamlit (en haut) est opaque et pleine
+       largeur ; avec le padding-top réduit plus haut, le bouton rond "⋮" (menu
+       compte/déconnexion) se retrouvait coincé dessous, invisible/incliquable. */
+    [data-testid="stMainBlockContainer"] {
+        padding-top: 3rem !important;
+    }
+    /* Le "+" natif (ouverture sidebar) est en position fixed et reste toujours
+       visible au-dessus de la barre d'outils Streamlit, contrairement à un élément
+       normal du contenu. Plutôt que de faire lutter le bouton "⋮" contre cette
+       barre, on descend le "+" à 3rem pour qu'il rejoigne le "⋮", juste au-dessus
+       du titre, sur la même ligne. */
+    [data-testid="stExpandSidebarButton"] {
+        top: 3rem !important;
+    }
     [data-testid="stHorizontalBlock"]:has(.edit-btn-marker):has(.reorder-btn-marker) {
         flex-wrap: nowrap !important;
         overflow-x: auto !important;
@@ -717,8 +731,10 @@ if not st.session_state.authenticated_user:
                 elif reset_new_password != reset_new_password_confirm:
                     st.error("Les mots de passe ne correspondent pas.")
                 elif reset_password_with_code(st.session_state.get("reset_username", ""), reset_code, reset_new_password):
-                    st.success("Mot de passe réinitialisé ! Tu peux te connecter.")
-                    st.session_state.auth_mode = "login"
+                    verified = verify_user(st.session_state.get("reset_username", ""), reset_new_password)
+                    st.session_state.pop("reset_username", None)
+                    st.session_state.authenticated_user, st.session_state.is_admin = verified
+                    st.rerun()
                 else:
                     st.error("Code invalide ou expiré.")
             if st.button("Retour à la connexion", key="back_to_login_from_reset", use_container_width=True):
